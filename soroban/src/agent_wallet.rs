@@ -1,4 +1,5 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Bytes, Env, Map, String, Vec};
+use soroban_sdk::contracterror;
 
 #[derive(Clone)]
 #[contracttype]
@@ -62,7 +63,7 @@ impl BetOracleAgentWallet {
     }
 
     pub fn authorize_backend(env: &Env, backend: Address, authorized: bool) {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
 
         if authorized {
@@ -76,7 +77,7 @@ impl BetOracleAgentWallet {
     }
 
     pub fn set_prediction_contract(env: &Env, contract: Address) {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
         require!(!contract.is_zero(), "Invalid contract");
 
@@ -84,19 +85,19 @@ impl BetOracleAgentWallet {
     }
 
     pub fn update_metadata(env: &Env, metadata_uri: String) {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
 
-        let mut profile: AgentProfile = env.storage().instance().get(&DataKey::Profile).unwrap().unwrap();
+        let mut profile: AgentProfile = env.storage().instance().get::<DataKey, AgentProfile>(&DataKey::Profile).unwrap().unwrap();
         profile.metadata_uri = metadata_uri;
         env.storage().instance().set(&DataKey::Profile, &profile);
     }
 
     pub fn set_active(env: &Env, active: bool) {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
 
-        let mut profile: AgentProfile = env.storage().instance().get(&DataKey::Profile).unwrap().unwrap();
+        let mut profile: AgentProfile = env.storage().instance().get::<DataKey, AgentProfile>(&DataKey::Profile).unwrap().unwrap();
         profile.active = active;
         env.storage().instance().set(&DataKey::Profile, &profile);
     }
@@ -112,15 +113,15 @@ impl BetOracleAgentWallet {
         confidence: u64,
         match_date: u64,
     ) -> bool {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         let is_authorized = env.storage().instance().has(&DataKey::AuthorizedBackend(env.invoker()))
             || env.invoker() == owner;
         require!(is_authorized, "Not authorized");
 
-        let prediction_contract: Address = env.storage().instance().get(&DataKey::PredictionContract).unwrap().unwrap();
+        let prediction_contract: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::PredictionContract).unwrap().unwrap();
         require!(!prediction_contract.is_zero(), "Prediction contract not set");
 
-        let profile: AgentProfile = env.storage().instance().get(&DataKey::Profile).unwrap().unwrap();
+        let profile: AgentProfile = env.storage().instance().get::<DataKey, AgentProfile>(&DataKey::Profile).unwrap().unwrap();
         require!(profile.active, "Agent not active");
 
         // Call prediction contract
@@ -145,7 +146,7 @@ impl BetOracleAgentWallet {
     }
 
     pub fn update_reputation(env: &Env, total_predictions: u64, correct_predictions: u64) {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
 
         let mut reputation: Reputation = env.storage().instance().get(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
@@ -177,7 +178,7 @@ impl BetOracleAgentWallet {
         amount: u64,
         recipient: Address,
     ) -> bool {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         let is_authorized = env.storage().instance().has(&DataKey::AuthorizedBackend(env.invoker()))
             || env.invoker() == owner;
         require!(is_authorized, "Not authorized");
@@ -226,7 +227,7 @@ impl BetOracleAgentWallet {
     }
 
     pub fn is_authorized(env: &Env, addr: Address) -> bool {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         env.storage().instance().has(&DataKey::AuthorizedBackend(addr.clone())) || addr == owner
     }
 
