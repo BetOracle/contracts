@@ -1,5 +1,6 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Bytes, Env, Map, String, Vec};
 use soroban_sdk::contracterror;
+use soroban_sdk::require;
 
 #[derive(Clone)]
 #[contracttype]
@@ -79,7 +80,8 @@ impl BetOracleAgentWallet {
     pub fn set_prediction_contract(env: &Env, contract: Address) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
-        require!(!contract.is_zero(), "Invalid contract");
+        let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
+        require!(contract != zero_addr, "Invalid contract");
 
         env.storage().instance().set(&DataKey::PredictionContract, &contract);
     }
@@ -109,7 +111,7 @@ impl BetOracleAgentWallet {
         home_team: String,
         away_team: String,
         league: String,
-        prediction: u8,
+        prediction: u32,
         confidence: u64,
         match_date: u64,
     ) -> bool {
@@ -119,7 +121,8 @@ impl BetOracleAgentWallet {
         require!(is_authorized, "Not authorized");
 
         let prediction_contract: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::PredictionContract).unwrap().unwrap();
-        require!(!prediction_contract.is_zero(), "Prediction contract not set");
+        let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
+        require!(prediction_contract != zero_addr, "Prediction contract not set");
 
         let profile: AgentProfile = env.storage().instance().get::<DataKey, AgentProfile>(&DataKey::Profile).unwrap().unwrap();
         require!(profile.active, "Agent not active");
@@ -127,7 +130,7 @@ impl BetOracleAgentWallet {
         // Call prediction contract
         // Note: In Soroban, cross-contract calls are done via client.invoke_contract
         // This is a simplified version - actual implementation would use soroban-sdk's invoke_contract
-        let mut reputation: Reputation = env.storage().instance().get(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
+        let mut reputation: Reputation = env.storage().instance().get::<DataKey, Reputation>(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
             total_predictions: 0,
             correct_predictions: 0,
             total_staked: 0,
@@ -149,7 +152,7 @@ impl BetOracleAgentWallet {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
         require!(env.invoker() == owner, "Not authorized");
 
-        let mut reputation: Reputation = env.storage().instance().get(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
+        let mut reputation: Reputation = env.storage().instance().get::<DataKey, Reputation>(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
             total_predictions: 0,
             correct_predictions: 0,
             total_staked: 0,
@@ -184,7 +187,8 @@ impl BetOracleAgentWallet {
         require!(is_authorized, "Not authorized");
 
         require!(!env.storage().instance().has(&DataKey::ProcessedPayment(payment_id.clone())), "Payment already processed");
-        require!(!recipient.is_zero(), "Invalid recipient");
+        let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
+        require!(recipient != zero_addr, "Invalid recipient");
         require!(amount > 0, "Amount must be > 0");
 
         // Mark as processed first (re-entrancy guard)
@@ -193,7 +197,8 @@ impl BetOracleAgentWallet {
         // Transfer tokens
         // Note: In Soroban, token transfers are done via token contract
         // This is a simplified version - actual implementation would use soroban-token SDK
-        if token.is_zero() {
+        let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
+        if token == zero_addr {
             // Native token (XLM)
             // In Soroban, native token transfers are handled differently
             // This would require actual implementation with soroban-token
@@ -213,11 +218,11 @@ impl BetOracleAgentWallet {
     }
 
     pub fn get_profile(env: &Env) -> AgentProfile {
-        env.storage().instance().get(&DataKey::Profile).unwrap().unwrap()
+        env.storage().instance().get::<DataKey, AgentProfile>(&DataKey::Profile).unwrap().unwrap()
     }
 
     pub fn get_reputation(env: &Env) -> Reputation {
-        env.storage().instance().get(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
+        env.storage().instance().get::<DataKey, Reputation>(&DataKey::Reputation).unwrap().unwrap_or(Reputation {
             total_predictions: 0,
             correct_predictions: 0,
             total_staked: 0,
