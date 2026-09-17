@@ -37,12 +37,12 @@ pub struct BetOraclePrediction;
 #[contractimpl]
 impl BetOraclePrediction {
     pub fn initialize(env: &Env) {
-        env.storage().instance().set(&DataKey::Owner, &env.invoker_contract());
+        env.storage().instance().set(&DataKey::Owner, &env.invoker());
     }
 
     pub fn set_agent_wallet(env: &Env, agent_wallet: Address) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        if env.invoker_contract() != owner {
+        if env.invoker() != owner {
             panic!("Only owner can call");
         }
         let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
@@ -73,7 +73,7 @@ impl BetOraclePrediction {
         match_date: u64,
     ) -> bool {
         let agent_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap();
-        if env.invoker_contract() != agent_wallet {
+        if env.invoker() != agent_wallet {
             panic!("Only agent wallet can call");
         }
         if prediction > 2 {
@@ -178,7 +178,7 @@ impl BetOraclePrediction {
         stake_amount: u64,
     ) -> bool {
         let agent_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap();
-        if env.invoker_contract() != agent_wallet {
+        if env.invoker() != agent_wallet {
             panic!("Only agent wallet can call");
         }
         if stake_amount == 0 {
@@ -224,7 +224,7 @@ impl BetOraclePrediction {
 
     pub fn resolve_prediction(env: &Env, prediction_id: Bytes, outcome: u32) {
         let agent_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap();
-        if env.invoker_contract() != agent_wallet {
+        if env.invoker() != agent_wallet {
             panic!("Only agent wallet can call");
         }
         if outcome > 2 {
