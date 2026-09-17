@@ -38,7 +38,7 @@ impl BetOracleFactory {
         // In Soroban, contract deployment is done via deployer
         // For this conversion, we use the invoker's address as a placeholder
         // In production, this would deploy a new BetOracleAgentWallet contract
-        let agent_wallet = env.invoker();
+        let agent_wallet = env.current_contract_address();
 
         // Add to agent wallets list
         let mut agent_wallets: Vec<Address> = if env.storage().instance().has(&DataKey::AgentWallets) {
@@ -53,7 +53,7 @@ impl BetOracleFactory {
         env.storage().instance().set(&DataKey::AgentById(agent_id.clone()), &agent_wallet);
 
         env.events()
-            .publish(("agent_deployed", agent_id.clone(), agent_wallet.clone()), (name.clone(), env.invoker(), env.ledger().timestamp()));
+            .publish(("agent_deployed", agent_id.clone(), agent_wallet.clone()), (name.clone(), env.current_contract_address(), env.ledger().timestamp()));
 
         agent_wallet
     }
@@ -67,7 +67,7 @@ impl BetOracleFactory {
         // In Soroban, contract deployment is done via deployer
         // For this conversion, we use the invoker's address as a placeholder
         // In production, this would deploy a new BetOraclePrediction contract
-        let prediction_contract = env.invoker();
+        let prediction_contract = env.current_contract_address();
 
         // Add to prediction contracts list
         let mut prediction_contracts: Vec<Address> = if env.storage().instance().has(&DataKey::PredictionContracts) {
@@ -104,7 +104,7 @@ impl BetOracleFactory {
         // on agent wallet to complete the linkage
 
         env.events()
-            .publish(("full_deployment", agent_id.clone(), agent_wallet.clone(), prediction_contract.clone()), (env.invoker(), env.ledger().timestamp()));
+            .publish(("full_deployment", agent_id.clone(), agent_wallet.clone(), prediction_contract.clone()), (env.current_contract_address(), env.ledger().timestamp()));
 
         (agent_wallet, prediction_contract)
     }

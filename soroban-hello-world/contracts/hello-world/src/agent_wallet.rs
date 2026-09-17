@@ -43,8 +43,12 @@ impl BetOracleAgentWallet {
         metadata_uri: String,
         owner: Address,
     ) {
-        require!(!agent_id.is_empty(), "Invalid agent ID");
-        require!(!name.is_empty(), "Name required");
+        if agent_id.is_empty() {
+            panic!("Invalid agent ID");
+        }
+        if name.is_empty() {
+            panic!("Name required");
+        }
 
         let profile = AgentProfile {
             agent_id: agent_id.clone(),
@@ -63,7 +67,7 @@ impl BetOracleAgentWallet {
 
     pub fn authorize_backend(env: &Env, backend: Address, authorized: bool) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        if env.invoker() != owner {
+        if env.current_contract_address() != owner {
             panic!("Not authorized");
         }
 
@@ -79,7 +83,7 @@ impl BetOracleAgentWallet {
 
     pub fn set_prediction_contract(env: &Env, contract: Address) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        if env.invoker() != owner {
+        if env.current_contract_address() != owner {
             panic!("Not authorized");
         }
         let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
@@ -92,7 +96,7 @@ impl BetOracleAgentWallet {
 
     pub fn update_metadata(env: &Env, metadata_uri: String) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        if env.invoker() != owner {
+        if env.current_contract_address() != owner {
             panic!("Not authorized");
         }
 
@@ -103,7 +107,7 @@ impl BetOracleAgentWallet {
 
     pub fn set_active(env: &Env, active: bool) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        if env.invoker() != owner {
+        if env.current_contract_address() != owner {
             panic!("Not authorized");
         }
 
@@ -124,8 +128,8 @@ impl BetOracleAgentWallet {
         match_date: u64,
     ) -> bool {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        let is_authorized = env.storage().instance().has(&DataKey::AuthorizedBackend(env.invoker()))
-            || env.invoker() == owner;
+        let is_authorized = env.storage().instance().has(&DataKey::AuthorizedBackend(env.current_contract_address()))
+            || env.current_contract_address() == owner;
         if !is_authorized {
             panic!("Not authorized");
         }
@@ -168,7 +172,7 @@ impl BetOracleAgentWallet {
 
     pub fn update_reputation(env: &Env, total_predictions: u64, correct_predictions: u64) {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        if env.invoker() != owner {
+        if env.current_contract_address() != owner {
             panic!("Not authorized");
         }
 
@@ -206,8 +210,8 @@ impl BetOracleAgentWallet {
         recipient: Address,
     ) -> bool {
         let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap();
-        let is_authorized = env.storage().instance().has(&DataKey::AuthorizedBackend(env.invoker()))
-            || env.invoker() == owner;
+        let is_authorized = env.storage().instance().has(&DataKey::AuthorizedBackend(env.current_contract_address()))
+            || env.current_contract_address() == owner;
         if !is_authorized {
             panic!("Not authorized");
         }
