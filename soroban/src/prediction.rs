@@ -41,11 +41,16 @@ impl BetOraclePrediction {
     }
 
     pub fn set_agent_wallet(env: &Env, agent_wallet: Address) {
-        let owner: Address = env.storage().instance().get(&DataKey::Owner).unwrap().unwrap();
-        require!(env.invoker() == owner, "Only owner can call");
-        require!(!agent_wallet.is_zero(), "Invalid agent wallet");
+        let owner: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::Owner).unwrap().unwrap();
+        if env.invoker() != owner {
+            panic!("Only owner can call");
+        }
+        let zero_addr = Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2"));
+        if agent_wallet == zero_addr {
+            panic!("Invalid agent wallet");
+        }
 
-        let old_wallet: Address = env.storage().instance().get(&DataKey::AgentWallet).unwrap().unwrap_or(Address::zero(&env));
+        let old_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap_or(Address::from_string(&String::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWH2")));
         env.storage().instance().set(&DataKey::AgentWallet, &agent_wallet);
 
         env.events()
@@ -64,16 +69,26 @@ impl BetOraclePrediction {
         match_date: u64,
     ) -> bool {
         let agent_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap().unwrap();
-        require!(env.invoker() == agent_wallet, "Only agent wallet can call");
-        require!(prediction <= 2, "Invalid prediction (0-2)");
-        require!(confidence <= 10000, "Confidence must be 0-10000");
-        require!(!env.storage().instance().has(&DataKey::Prediction(prediction_id.clone())), "Prediction already exists");
+        if env.invoker() != agent_wallet {
+            panic!("Only agent wallet can call");
+        }
+        if prediction > 2 {
+            panic!("Invalid prediction (0-2)");
+        }
+        if confidence > 10000 {
+            panic!("Confidence must be 0-10000");
+        }
+        if env.storage().instance().has(&DataKey::Prediction(prediction_id.clone())) {
+            panic!("Prediction already exists");
+        }
 
         // Allow match_date == 0 (backend may not always know kick-off time).
         // If provided, it must be at least 1 hour from now to prevent resolving
         // before the match has started.
         if match_date > 0 {
-            require!(match_date > env.ledger().timestamp(), "Match must be in future");
+            if match_date <= env.ledger().timestamp() {
+                panic!("Match must be in future");
+            }
         }
 
         Self::_store_prediction(
@@ -108,10 +123,10 @@ impl BetOraclePrediction {
 
         let pred = Prediction {
             prediction_id: prediction_id.clone(),
-            match_id,
-            agent: agent_wallet,
-            home_team,
-            away_team,
+            match_id: match_id.clone(),
+            agent: agent_wallet.clone(),
+            home_team: home_team.clone(),
+            away_team: away_team.clone(),
             league,
             prediction,
             confidence,
@@ -125,12 +140,12 @@ impl BetOraclePrediction {
         env.storage().instance().set(&DataKey::Prediction(prediction_id.clone()), &pred);
 
         // Add to prediction IDs list
-        let mut prediction_ids: Vec<Bytes> = env.storage().instance().get::<DataKey, Vec<Bytes>>(&DataKey::PredictionIds).unwrap().unwrap_or(Vec::new(&env));
+        let mut prediction_ids: Vec<Bytes> = env.storage().instance().get::<DataKey, Vec<Bytes>>(&DataKey::PredictionIds).unwrap().unwrap_or(Vec::new());
         prediction_ids.push_back(prediction_id.clone());
         env.storage().instance().set(&DataKey::PredictionIds, &prediction_ids);
 
         // Update total predictions count
-        let mut total_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::TotalPredictions).unwrap_or(0);
+        let mut total_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::TotalPredictions).unwrap().unwrap_or(0);
         total_predictions += 1;
         env.storage().instance().set(&DataKey::TotalPredictions, &total_predictions);
 
@@ -151,12 +166,24 @@ impl BetOraclePrediction {
         stake_amount: u64,
     ) -> bool {
         let agent_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap().unwrap();
-        require!(env.invoker() == agent_wallet, "Only agent wallet can call");
-        require!(stake_amount > 0, "Must stake some amount");
-        require!(prediction <= 2, "Invalid prediction (0-2)");
-        require!(confidence <= 10000, "Confidence must be 0-10000");
-        require!(!env.storage().instance().has(&DataKey::Prediction(prediction_id.clone())), "Prediction already exists");
-        require!(match_date > env.ledger().timestamp(), "Match must be in future");
+        if env.invoker() != agent_wallet {
+            panic!("Only agent wallet can call");
+        }
+        if stake_amount == 0 {
+            panic!("Must stake some amount");
+        }
+        if prediction > 2 {
+            panic!("Invalid prediction (0-2)");
+        }
+        if confidence > 10000 {
+            panic!("Confidence must be 0-10000");
+        }
+        if env.storage().instance().has(&DataKey::Prediction(prediction_id.clone())) {
+            panic!("Prediction already exists");
+        }
+        if match_date <= env.ledger().timestamp() {
+            panic!("Match must be in future");
+        }
 
         Self::_store_prediction(
             env,
@@ -172,7 +199,7 @@ impl BetOraclePrediction {
         );
 
         // Update total staked
-        let mut total_staked: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::TotalStaked).unwrap_or(0);
+        let mut total_staked: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::TotalStaked).unwrap().unwrap_or(0);
         total_staked += stake_amount;
         env.storage().instance().set(&DataKey::TotalStaked, &total_staked);
 
@@ -181,30 +208,40 @@ impl BetOraclePrediction {
 
     pub fn resolve_prediction(env: &Env, prediction_id: Bytes, outcome: u32) {
         let agent_wallet: Address = env.storage().instance().get::<DataKey, Address>(&DataKey::AgentWallet).unwrap().unwrap();
-        require!(env.invoker() == agent_wallet, "Only agent wallet can call");
-        require!(outcome <= 2, "Invalid outcome (0-2)");
+        if env.invoker() != agent_wallet {
+            panic!("Only agent wallet can call");
+        }
+        if outcome > 2 {
+            panic!("Invalid outcome (0-2)");
+        }
 
         let mut pred: Prediction = env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id.clone())).unwrap().unwrap();
-        require!(pred.timestamp > 0, "Prediction not found");
-        require!(!pred.resolved, "Already resolved");
+        if pred.timestamp == 0 {
+            panic!("Prediction not found");
+        }
+        if pred.resolved {
+            panic!("Already resolved");
+        }
 
         // If matchDate was provided, enforce the match has started (with 1h buffer).
         if pred.match_date > 0 {
             // 1 hour = 3600 seconds
-            require!(env.ledger().timestamp() >= pred.match_date - 3600, "Match has not started yet");
+            if env.ledger().timestamp() < pred.match_date - 3600 {
+                panic!("Match has not started yet");
+            }
         }
 
         pred.resolved = true;
         pred.outcome = outcome;
 
         // Update resolved predictions count
-        let mut resolved_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::ResolvedPredictions).unwrap_or(0);
+        let mut resolved_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::ResolvedPredictions).unwrap().unwrap_or(0);
         resolved_predictions += 1;
         env.storage().instance().set(&DataKey::ResolvedPredictions, &resolved_predictions);
 
         let correct = pred.prediction == outcome;
         if correct {
-            let mut correct_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::CorrectPredictions).unwrap_or(0);
+            let mut correct_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::CorrectPredictions).unwrap().unwrap_or(0);
             correct_predictions += 1;
             env.storage().instance().set(&DataKey::CorrectPredictions, &correct_predictions);
         }
@@ -216,20 +253,20 @@ impl BetOraclePrediction {
     }
 
     pub fn get_prediction(env: &Env, prediction_id: Bytes) -> Prediction {
-        env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id)).unwrap()
+        env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id)).unwrap().unwrap()
     }
 
     pub fn get_predictions(env: &Env, offset: u64, limit: u64) -> Vec<Prediction> {
-        let prediction_ids: Vec<Bytes> = env.storage().instance().get::<DataKey, Vec<Bytes>>(&DataKey::PredictionIds).unwrap_or(Vec::new(&env));
+        let prediction_ids: Vec<Bytes> = env.storage().instance().get::<DataKey, Vec<Bytes>>(&DataKey::PredictionIds).unwrap().unwrap_or(Vec::new());
         let len = prediction_ids.len() as u64;
 
         let start = offset.min(len);
         let end = (offset + limit).min(len);
 
-        let mut result = Vec::new(&env);
+        let mut result = Vec::new();
         for i in start..end {
             let prediction_id = prediction_ids.get(i as u32).unwrap();
-            let pred: Prediction = env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id.clone())).unwrap();
+            let pred: Prediction = env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id.clone())).unwrap().unwrap();
             result.push_back(pred);
         }
 
@@ -237,17 +274,19 @@ impl BetOraclePrediction {
     }
 
     pub fn get_agent_accuracy(env: &Env) -> u64 {
-        let resolved_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::ResolvedPredictions).unwrap_or(0);
+        let resolved_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::ResolvedPredictions).unwrap().unwrap_or(0);
         if resolved_predictions == 0 {
             return 0;
         }
-        let correct_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::CorrectPredictions).unwrap_or(0);
+        let correct_predictions: u64 = env.storage().instance().get::<DataKey, u64>(&DataKey::CorrectPredictions).unwrap().unwrap_or(0);
         (correct_predictions * 10000) / resolved_predictions
     }
 
     pub fn is_prediction_correct(env: &Env, prediction_id: Bytes) -> bool {
-        let pred: Prediction = env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id)).unwrap();
-        require!(pred.resolved, "Not resolved yet");
+        let pred: Prediction = env.storage().instance().get::<DataKey, Prediction>(&DataKey::Prediction(prediction_id)).unwrap().unwrap();
+        if !pred.resolved {
+            panic!("Not resolved yet");
+        }
         pred.prediction == pred.outcome
     }
 

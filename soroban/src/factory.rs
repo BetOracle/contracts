@@ -1,4 +1,5 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Bytes, Env, String, Vec};
+use soroban_sdk::require;
 
 #[derive(Clone)]
 #[contracttype]
@@ -39,7 +40,7 @@ impl BetOracleFactory {
         let agent_wallet = env.invoker();
 
         // Add to agent wallets list
-        let mut agent_wallets: Vec<Address> = env.storage().instance().get(&DataKey::AgentWallets).unwrap().unwrap_or(Vec::new(&env));
+        let mut agent_wallets: Vec<Address> = env.storage().instance().get::<DataKey, Vec<Address>>(&DataKey::AgentWallets).unwrap().unwrap_or(Vec::new());
         agent_wallets.push_back(agent_wallet.clone());
         env.storage().instance().set(&DataKey::AgentWallets, &agent_wallets);
 
@@ -64,7 +65,7 @@ impl BetOracleFactory {
         let prediction_contract = env.invoker();
 
         // Add to prediction contracts list
-        let mut prediction_contracts: Vec<Address> = env.storage().instance().get(&DataKey::PredictionContracts).unwrap().unwrap_or(Vec::new(&env));
+        let mut prediction_contracts: Vec<Address> = env.storage().instance().get::<DataKey, Vec<Address>>(&DataKey::PredictionContracts).unwrap().unwrap_or(Vec::new());
         prediction_contracts.push_back(prediction_contract.clone());
         env.storage().instance().set(&DataKey::PredictionContracts, &prediction_contracts);
 
@@ -100,20 +101,20 @@ impl BetOracleFactory {
     }
 
     pub fn get_agent_wallet(env: &Env, agent_id: Bytes) -> Address {
-        env.storage().instance().get(&DataKey::AgentById(agent_id)).unwrap().unwrap()
+        env.storage().instance().get::<DataKey, Address>(&DataKey::AgentById(agent_id)).unwrap().unwrap()
     }
 
     pub fn get_all_agent_wallets(env: &Env) -> Vec<Address> {
-        env.storage().instance().get(&DataKey::AgentWallets).unwrap().unwrap_or(Vec::new(&env))
+        env.storage().instance().get::<DataKey, Vec<Address>>(&DataKey::AgentWallets).unwrap().unwrap_or(Vec::new())
     }
 
     pub fn get_all_prediction_contracts(env: &Env) -> Vec<Address> {
-        env.storage().instance().get(&DataKey::PredictionContracts).unwrap().unwrap_or(Vec::new(&env))
+        env.storage().instance().get::<DataKey, Vec<Address>>(&DataKey::PredictionContracts).unwrap().unwrap_or(Vec::new())
     }
 
     pub fn get_deployment_count(env: &Env) -> (u64, u64) {
-        let agent_wallets: Vec<Address> = env.storage().instance().get(&DataKey::AgentWallets).unwrap().unwrap_or(Vec::new(&env));
-        let prediction_contracts: Vec<Address> = env.storage().instance().get(&DataKey::PredictionContracts).unwrap().unwrap_or(Vec::new(&env));
+        let agent_wallets: Vec<Address> = env.storage().instance().get::<DataKey, Vec<Address>>(&DataKey::AgentWallets).unwrap().unwrap_or(Vec::new());
+        let prediction_contracts: Vec<Address> = env.storage().instance().get::<DataKey, Vec<Address>>(&DataKey::PredictionContracts).unwrap().unwrap_or(Vec::new());
         (agent_wallets.len() as u64, prediction_contracts.len() as u64)
     }
 }
